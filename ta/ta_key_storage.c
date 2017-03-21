@@ -19,6 +19,7 @@
 #define DH 6
 #define DHDERIVE 7
 #define DHGETPUBLIC 8
+#define TESTSETGETKEY 9
 
 // Available modes for the TA to use.
 typedef enum {
@@ -227,10 +228,6 @@ static TEE_Result diffiehellman_operation(TEE_ObjectHandle *key,
   // Null initialized handle for the TEE operation.
   TEE_OperationHandle dh_operation = (TEE_OperationHandle)NULL;
 
-  void *secret_attr_buffer = malloc(1024);
-  uint32_t secret_attr_buffer_size = 1024;
-  TEE_Attribute secret_attr = {0};
-
   DMSG("Entered diffiehellman_operation");
   // Allocate the operation.
   ret = TEE_AllocateOperation(&dh_operation, TEE_ALG_DH_DERIVE_SHARED_SECRET,
@@ -254,24 +251,13 @@ static TEE_Result diffiehellman_operation(TEE_ObjectHandle *key,
     TEE_FreeOperation(dh_operation);
     return ret;
   }
-  ret = TEE_AllocateTransientObject(TEE_TYPE_GENERIC_SECRET, 1024, derivedKey);
+  ret = TEE_AllocateTransientObject(TEE_TYPE_GENERIC_SECRET, 2048, derivedKey);
   DMSG("Allocated transient object");
   if (ret != TEE_SUCCESS) {
     DMSG("TEE_AllocateTransientObject failed: 0x%x", ret);
     TEE_FreeOperation(dh_operation);
     return ret;
   }
-  TEE_InitRefAttribute(&secret_attr, TEE_ATTR_SECRET_VALUE, secret_attr_buffer,
-                       secret_attr_buffer_size);
-  DMSG("Initialized ref attr");
-  ret = TEE_PopulateTransientObject(*derivedKey, &secret_attr, 1);
-  DMSG("Populated transient object");
-  if (ret != TEE_SUCCESS) {
-    DMSG("TEE_PopulateTransientObject failed: 0x%x", ret);
-    TEE_FreeOperation(dh_operation);
-    return ret;
-  }
-  free(secret_attr_buffer);
 
   TEE_DeriveKey(dh_operation, param, 1, *derivedKey);
   DMSG("Key derived");
@@ -900,10 +886,12 @@ TEE_Result TA_EXPORT TA_InvokeCommandEntryPoint(void *sessionContext,
     TEE_GetObjectBufferAttribute(derivedKey, TEE_ATTR_SECRET_VALUE,
                                  params[2].memref.buffer,
                                  (uint32_t *)&params[2].memref.size);
-    params[0].value.b = params[2].memref.size;
+    params[1].value.b = params[2].memref.size;
     TEE_CloseObject(secret_key);
     TEE_CloseObject(derivedKey);
     return TEE_SUCCESS;
+  } else if (commandID == TESTSETGETKEY) {
+    
   } else {
     DMSG("Bad command.");
     return TEE_ERROR_BAD_PARAMETERS;

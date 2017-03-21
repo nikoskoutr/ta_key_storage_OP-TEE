@@ -13,7 +13,9 @@
 #define DHOP 6
 #define DHDERIVE 7
 #define DHGETPUBLIC 8
+#define TESTSETGETKEY 9
 
+#define TEE_TYPE_GENERIC_SECRET 0xA0000000
 #define TEE_TYPE_RSA_KEYPAIR 0xA1000030
 #define TEE_ALG_RSA_NOPAD 0x60000030
 #define TEE_ALG_AES_ECB_NOPAD 0x10000010
@@ -933,5 +935,97 @@ int main() {
     }
     printf("\n");
     return 0;
+  }
+  if (selection == 6) {
+    operation.paramTypes =
+        TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_VALUE_INOUT, TEEC_MEMREF_WHOLE,
+                         TEEC_MEMREF_WHOLE);
+    printf("-- Opening session.\n");
+    ret = TEEC_OpenSession(&context, &session, &uuid, TEEC_LOGIN_PUBLIC, NULL,
+                           NULL, NULL);
+    if (ret != TEEC_SUCCESS) {
+      printf("!! TEEC_OpenSession failed: 0x%x\n", ret);
+      TEEC_FinalizeContext(&context);
+      return 0;
+    }
+
+    char *buffer1;
+    char *buffer2;
+
+    printf("-- Registering shared memories.\n");
+
+    in_mem.buffer = NULL;
+    in_mem.size = 2048;
+    in_mem.flags = TEEC_MEM_INPUT | TEEC_MEM_OUTPUT;
+
+    out_mem.buffer = NULL;
+    out_mem.size = 2048;
+    out_mem.flags = TEEC_MEM_INPUT | TEEC_MEM_OUTPUT;
+
+    ret = TEEC_AllocateSharedMemory(&context, &in_mem);
+    if (ret != TEEC_SUCCESS) {
+      printf("!! Error allocating input memory 0x%x\n", ret);
+      TEEC_CloseSession(&session);
+      TEEC_FinalizeContext(&context);
+      return 0;
+    }
+
+    ret = TEEC_AllocateSharedMemory(&context, &out_mem);
+    if (ret != TEEC_SUCCESS) {
+      printf("!! Error allocating output memory 0x%x\n", ret);
+      TEEC_CloseSession(&session);
+      TEEC_FinalizeContext(&context);
+      return 0;
+    }
+
+    ret = TEEC_RegisterSharedMemory(&context, &in_mem);
+    if (ret != TEEC_SUCCESS) {
+      printf("!! Error registering input memory 0x%x\n", ret);
+      TEEC_CloseSession(&session);
+      TEEC_FinalizeContext(&context);
+      return 0;
+    }
+
+    ret = TEEC_RegisterSharedMemory(&context, &out_mem);
+    if (ret != TEEC_SUCCESS) {
+      printf("!! Error registering output memory 0x%x\n", ret);
+      TEEC_CloseSession(&session);
+      TEEC_FinalizeContext(&context);
+      return 0;
+    }
+
+    operation.params[2].memref.parent = &in_mem;
+    operation.params[3].memref.parent = &out_mem;
+    operation.params[2].memref.offset = 0;
+    operation.params[3].memref.offset = 0;
+    operation.params[2].memref.size = 2048;
+    operation.params[3].memref.size = 2048;
+
+    buffer1 = in_mem.buffer;
+    buffer2 = out_mem.buffer;
+    operation.params[0].value.a = 256;
+    operation.params[0].value.b =  TEE_TYPE_GENERIC_SECRET; 
+    printf("-- Invoking command: Key Generation:\n");
+    ret = TEEC_InvokeCommand(&session, KEYGENERATION, &operation, NULL);
+    if (ret != TEEC_SUCCESS) {
+      printf("!! Error generating key 0x%x\n", ret);
+      TEEC_CloseSession(&session);
+      TEEC_FinalizeContext(&context);
+      return 0;
+    }
+
+    uint32_t key_id = operation.params[0].value.a;
+
+    printf("-- Invoking command: Get-Set Key:\n");
+    ret = TEEC_InvokeCommand(&session, TESTSETGETKEY, &operation, NULL);
+    if (ret != TEEC_SUCCESS) {
+      printf("!! Error generating key 0x%x\n", ret);
+      TEEC_CloseSession(&session);
+      TEEC_FinalizeContext(&context);
+      return 0;
+    }
+
+   
+    
   }
 }
