@@ -650,6 +650,8 @@ TEE_Result TA_EXPORT TA_InvokeCommandEntryPoint(void *sessionContext,
   // Attributes for the DH operation
   TEE_Attribute attrs[3];
 
+  TEE_Attribute attr[1];
+
   TEE_ObjectHandle secret_key, derivedKey;
 
   TEE_Attribute param[1];
@@ -891,7 +893,36 @@ TEE_Result TA_EXPORT TA_InvokeCommandEntryPoint(void *sessionContext,
     TEE_CloseObject(derivedKey);
     return TEE_SUCCESS;
   } else if (commandID == TESTSETGETKEY) {
-    
+    uint32_t key_id = params[0].value.a;
+    ret = TEE_AllocateObject(TEE_TYPE_GENERIC_SECRET, 256,
+                                key);
+    if( ret != TEE_SUCCESS ){
+        DMSG("Error at object allocation 0x%x", ret);
+        TEE_CloseObject(key);
+        return 0;
+    }
+    TEE_InitRefAttribute(&attr[0], TEE_ATTR_DH_PRIME, params[2].memref.buffer,
+                         params[0].value.b);
+
+    TEE_PopulateTransientObject(key, attr, 1);
+
+    store_key(key, &params[0].value.a);
+
+    TEE_CloseObject(key);
+
+    ret = get_key(&key, key_id);
+    if( ret != TEE_SUCCESS ) {
+        DMSG("Error at get key 0x%x", ret);
+        TEE_CloseObject(key);
+        return 0;
+    }
+    output_size = params[2].memref.size;
+    TEE_GetObjectBufferAttribute(key, TEE_ATTR_SECRET_VALUE,
+                                params[2].memref.buffer,
+                                (uint32_t *)&output_size);
+    params[1].value.b = output_size;
+    TEE_CloseObject(key);
+    return TEE_SUCCESS;
   } else {
     DMSG("Bad command.");
     return TEE_ERROR_BAD_PARAMETERS;
