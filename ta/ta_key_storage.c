@@ -893,24 +893,25 @@ TEE_Result TA_EXPORT TA_InvokeCommandEntryPoint(void *sessionContext,
     TEE_CloseObject(derivedKey);
     return TEE_SUCCESS;
   } else if (commandID == TESTSETGETKEY) {
-    uint32_t key_id = params[0].value.a;
-    ret = TEE_AllocateObject(TEE_TYPE_GENERIC_SECRET, 256,
-                                key);
+    ret = TEE_AllocateTransientObject(TEE_TYPE_GENERIC_SECRET, 256,
+                                &key);
     if( ret != TEE_SUCCESS ){
         DMSG("Error at object allocation 0x%x", ret);
         TEE_CloseObject(key);
         return 0;
     }
     TEE_InitRefAttribute(&attr[0], TEE_ATTR_DH_PRIME, params[2].memref.buffer,
-                         params[0].value.b);
+                         params[2].memref.size);
 
     TEE_PopulateTransientObject(key, attr, 1);
-
+    DMSG("----------------");
     store_key(key, &params[0].value.a);
 
     TEE_CloseObject(key);
 
-    ret = get_key(&key, key_id);
+    DMSG("-------------");
+
+    ret = get_key(&key, params[0].value.a);
     if( ret != TEE_SUCCESS ) {
         DMSG("Error at get key 0x%x", ret);
         TEE_CloseObject(key);
