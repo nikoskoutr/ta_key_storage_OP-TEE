@@ -900,7 +900,7 @@ TEE_Result TA_EXPORT TA_InvokeCommandEntryPoint(void *sessionContext,
         TEE_CloseObject(key);
         return 0;
     }
-    TEE_InitRefAttribute(&attr[0], TEE_ATTR_DH_PRIME, params[2].memref.buffer,
+    TEE_InitRefAttribute(&attr[0], TEE_ATTR_SECRET_VALUE, params[2].memref.buffer,
                          params[2].memref.size);
 
     TEE_PopulateTransientObject(key, attr, 1);

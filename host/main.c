@@ -702,8 +702,6 @@ int main() {
     static unsigned char dh2048_g[] = {
         0x05,
     };
-    // BIGNUM *dh512p = BN_bin2bn(dh512_p, sizeof(dh512_p), NULL);
-    // BIGNUM *dh512g = BN_bin2bn(dh512_g, sizeof(dh512_g), NULL);
 
     operation.paramTypes =
         TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_VALUE_INOUT, TEEC_MEMREF_WHOLE,
@@ -978,3 +976,4 @@ int main() {
     
   }
 }
+
